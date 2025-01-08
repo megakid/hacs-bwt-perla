@@ -252,6 +252,7 @@ class BwtEntity(CoordinatorEntity[BwtCoordinator]):
         super().__init__(coordinator)
         self._attr_device_info = device_info
         self._attr_translation_key = key
+        self._attr_has_entity_name = True
         self.entity_id = f"sensor.${DOMAIN}_${key}"
         self._attr_unique_id = entry_id + "_" + key
 
