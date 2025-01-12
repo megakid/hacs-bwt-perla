@@ -89,7 +89,7 @@ async def async_setup_entry(
         serial_number=None,
         suggested_area=None,
         sw_version=coordinator.data.firmware_version,
-        via_device=(DOMAIN, ""),
+        via_device=None,
     )
 
     async_add_entities(
