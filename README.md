@@ -1,4 +1,4 @@
-# Custom HACS integration for the BWT Perla
+# Custom HA integration for the BWT Perla
 
 _BWT Perla integration repository for [HACS](https://github.com/custom-components/hacs)._
 <!--
@@ -42,5 +42,5 @@ For more details and recent news, check out the discussion in the [HomeAssistant
 | last_regeneration_1, last_regeneration_2 | Last regeneration of column 1 or 2 |
 | counter_regeneration_1, counter_regeneration_2 | Total count of regenerations since initial device setup |
 | capacity_1, capacity_2 | Capacity the columns have left of water with hardness_out |
-| day_output, month_output, year_output | The output of the current day, month and year. **This value sometimes is too low, but it is still unclear why. In general the total_output is more reliable.** [More information](https://github.com/dkarv/hacs-bwt-perla/issues/14) |
+| day_output, month_output, year_output | The output of the current day, month and year. **This value sometimes is too low, but it is still unclear why. In general the total_output is more reliable.** [More information](https://github.com/dkarv/ha-bwt-perla/issues/14) |
 | current_flow | The current flow rate. Please note that this value is not too reliable. Especially short flows might be completely missing, because this value is only queried every 30 seconds in the beginning. Only once a water flow is detected, it is queried more often. Once the flow is zero, the refresh rate cools down to 30 seconds. |
