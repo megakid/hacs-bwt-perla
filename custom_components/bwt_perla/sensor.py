@@ -77,6 +77,8 @@ async def async_setup_entry(
         # and start a config flow with SOURCE_REAUTH (async_step_reauth)
         raise ConfigEntryAuthFailed from e
 
+    columns = coordinator.data.columns
+    model_suffix = "Duplex" if columns == 2 else "One"
     device_info = DeviceInfo(
         configuration_url=None,
         connections=set(),
@@ -84,7 +86,7 @@ async def async_setup_entry(
         hw_version=None,
         identifiers={(DOMAIN, config_entry.entry_id)},
         manufacturer="BWT",
-        model="Perla",
+        model=f'Perla {model_suffix}',
         name=config_entry.title,
         serial_number=None,
         suggested_area=None,
@@ -92,8 +94,7 @@ async def async_setup_entry(
         via_device=None,
     )
 
-    async_add_entities(
-        [
+    entities = [
             TotalOutputSensor(coordinator, device_info, config_entry.entry_id),
             ErrorSensor(coordinator, device_info, config_entry.entry_id),
             WarningSensor(coordinator, device_info, config_entry.entry_id),
@@ -159,40 +160,6 @@ async def async_setup_entry(
                 UnitOfMass.GRAMS,
                 _MASS,
             ),
-            DeviceClassSensor(
-                coordinator,
-                device_info,
-                config_entry.entry_id,
-                "last_regeneration_1",
-                lambda data: data.regeneration_last_1,
-                SensorDeviceClass.TIMESTAMP,
-                _TIME,
-            ),
-            DeviceClassSensor(
-                coordinator,
-                device_info,
-                config_entry.entry_id,
-                "last_regeneration_2",
-                lambda data: data.regeneration_last_2,
-                SensorDeviceClass.TIMESTAMP,
-                _TIME,
-            ),
-            SimpleSensor(
-                coordinator,
-                device_info,
-                config_entry.entry_id,
-                "counter_regeneration_1",
-                lambda data: data.regeneration_count_1,
-                _COUNTER,
-            ),
-            SimpleSensor(
-                coordinator,
-                device_info,
-                config_entry.entry_id,
-                "counter_regeneration_2",
-                lambda data: data.regeneration_count_2,
-                _COUNTER,
-            ),
             HolidayModeSensor(coordinator, device_info, config_entry.entry_id),
             HolidayStartSensor(coordinator, device_info, config_entry.entry_id),
             CalculatedWaterSensor(
@@ -219,6 +186,7 @@ async def async_setup_entry(
                 lambda data: data.treated_year,
                 _YEAR,
             ),
+            CurrentFlowSensor(coordinator, device_info, config_entry.entry_id),
             CalculatedCapacitySensor(
                 coordinator,
                 device_info,
@@ -226,16 +194,52 @@ async def async_setup_entry(
                 "capacity_1",
                 lambda data: data.capacity_1,
             ),
-            CalculatedCapacitySensor(
+            DeviceClassSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "last_regeneration_1",
+                lambda data: data.regeneration_last_1,
+                SensorDeviceClass.TIMESTAMP,
+                _TIME,
+            ),
+            SimpleSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "counter_regeneration_1",
+                lambda data: data.regeneration_count_1,
+                _COUNTER,
+            ),
+        ]
+
+    if columns == 2:
+        entities.append(CalculatedCapacitySensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "capacity_2",
                 lambda data: data.capacity_2,
-            ),
-            CurrentFlowSensor(coordinator, device_info, config_entry.entry_id),
-        ]
-    )
+            ))
+        entities.append(DeviceClassSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "last_regeneration_2",
+                lambda data: data.regeneration_last_2,
+                SensorDeviceClass.TIMESTAMP,
+                _TIME,
+            ))
+        entities.append(SimpleSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "counter_regeneration_2",
+                lambda data: data.regeneration_count_2,
+                _COUNTER,
+            ))
+
+    async_add_entities(entities)
 
 
 class BwtEntity(CoordinatorEntity[BwtCoordinator]):
