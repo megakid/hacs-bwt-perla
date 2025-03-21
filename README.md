@@ -19,7 +19,7 @@ _BWT Perla integration repository for [HACS](https://github.com/custom-component
 
 ### Firmware
 
-The firmware 2.02xx is still in public beta. It can be requested through the customer service by mail and will be remotely installed on your device.
+The firmware 2.02xx is currently rolling out to all devices. If your device does not have it yet, it can be requested through the customer service by mail and will be remotely installed on your device.
 
 It looks like the customer service does not do the update on devices in the UK - it is still unclear why and what other countries are affected.
 
@@ -35,12 +35,13 @@ For more details and recent news, check out the discussion in the [HomeAssistant
 | holiday_mode | If the holiday mode is active (true) or not (false) |
 | holiday_mode_start | Undefined or a timestamp if the holiday mode is set to start in the future |
 | hardness_in, hardness_out | dH value of the incoming and outgoing water. Note that this value is not measured, but configured on the device during setup |
-| customer_service, technician_service | Timestamp of the last service performed by the customer or technician |
+| customer_service, technician_service | Timestamp of the last service performed by the customer or technician. The timezone of BWT device and HA server must be the same for this to be correct |
 | regenerativ_level | Percentage of salt left |
 | regenerativ_days | Estimated days of salt left |
 | regenerativ_mass | Total grams of salt used since initial device setup |
-| last_regeneration_1, last_regeneration_2 | Last regeneration of column 1 or 2 |
+| last_regeneration_1, last_regeneration_2 | Last regeneration of column 1 or 2. The timezone of BWT device and HA server must be the same for this to be correct |
 | counter_regeneration_1, counter_regeneration_2 | Total count of regenerations since initial device setup |
 | capacity_1, capacity_2 | Capacity the columns have left of water with hardness_out |
-| day_output, month_output, year_output | The output of the current day, month and year. **This value sometimes is too low, but it is still unclear why. In general the total_output is more reliable.** [More information](https://github.com/dkarv/ha-bwt-perla/issues/14) |
+| day_output, month_output, year_output | The output of the current day, month and year. **These values are sometimes too low, probably when a lot of water is used in a short time. The total_output is more reliable to measure the water consumption.** https://github.com/dkarv/ha-bwt-perla/issues/14 |
 | current_flow | The current flow rate. Please note that this value is not too reliable. Especially short flows might be completely missing, because this value is only queried every 30 seconds in the beginning. Only once a water flow is detected, it is queried more often. Once the flow is zero, the refresh rate cools down to 30 seconds. |
+
