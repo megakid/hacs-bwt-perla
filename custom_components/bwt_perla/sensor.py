@@ -119,7 +119,7 @@ async def async_setup_entry(
                 device_info,
                 config_entry.entry_id,
                 "customer_service",
-                lambda data: data.service_customer,
+                lambda data: data.service_customer.astimezone(),
                 SensorDeviceClass.TIMESTAMP,
                 _WRENCH_CLOCK,
             ),
@@ -128,7 +128,7 @@ async def async_setup_entry(
                 device_info,
                 config_entry.entry_id,
                 "technician_service",
-                lambda data: data.service_technician,
+                lambda data: data.service_technician.astimezone(),
                 SensorDeviceClass.TIMESTAMP,
                 _WRENCH_PERSON,
             ),
@@ -199,7 +199,7 @@ async def async_setup_entry(
                 device_info,
                 config_entry.entry_id,
                 "last_regeneration_1",
-                lambda data: data.regeneration_last_1,
+                lambda data: data.regeneration_last_1.astimezone(),
                 SensorDeviceClass.TIMESTAMP,
                 _TIME,
             ),
@@ -226,7 +226,7 @@ async def async_setup_entry(
                 device_info,
                 config_entry.entry_id,
                 "last_regeneration_2",
-                lambda data: data.regeneration_last_2,
+                lambda data: data.regeneration_last_2.astimezone(),
                 SensorDeviceClass.TIMESTAMP,
                 _TIME,
             ))
@@ -445,7 +445,7 @@ class HolidayStartSensor(BwtEntity, SensorEntity):
         holiday_mode = self.coordinator.data.holiday_mode
         if holiday_mode > 1:
             self._attr_native_value = datetime.fromtimestamp(
-                holiday_mode, tz=ZoneInfo("UTC")
+                holiday_mode # , tz=ZoneInfo("localtime")
             )
         else:
             self._attr_native_value = None
