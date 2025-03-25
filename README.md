@@ -6,9 +6,9 @@ _BWT Perla integration repository for [HACS](https://github.com/custom-component
 -->
 ### Requirements
 
-* Firmware with at least version 2.02xx [(more info)](#How_can_I_get_the_firmware_update)
+* Firmware with at least version 2.02xx [(more info)](#how-can-i-get-the-firmware-update)
 * Local API enabled in Settings > General > Connection
-* "Login-Code" sent to you by mail during registration [(more info)](#Where_do_I_get_the_Login-Code)
+* "Login-Code" sent to you by mail during registration [(more info)](#where-do-i-get-the-login-code)
 * local network connection (you need the ip address during setup)
 
 ### Installation
@@ -54,7 +54,7 @@ The Login-Code is sent to you by mail when registering the device for the first 
 
 #### Why are the values from the integration different to the ones on the device?
 
-The integration calculates the blended water volume for all entities. [More info on blended water](#What_is_blended_water).
+The integration calculates the blended water volume for all entities. [More info on blended water](#what-is-blended-water).
 It does so to make the values comparable - if there is a remaining capacity of 200l, you can use 200l in your house before the BWT needs to start regeneration.
 
 Also the salt level on the device is only showing 10% steps, while this integration has exact percentages.
