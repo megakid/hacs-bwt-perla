@@ -6,24 +6,16 @@ _BWT Perla integration repository for [HACS](https://github.com/custom-component
 -->
 ### Requirements
 
-* Firmware 2.02xx [(more info)](#firmware)
+* Firmware with at least version 2.02xx [(more info)](#How_can_I_get_the_firmware_update)
 * Local API enabled in Settings > General > Connection
-* "Login-Code" sent to you by mail during registration
+* "Login-Code" sent to you by mail during registration [(more info)](#Where_do_I_get_the_Login-Code)
 * local network connection (you need the ip address during setup)
 
 ### Installation
 
 * Add this repository as user-defined repository in HACS
 * Setup integration and enter host / ip address and the "Login-Code"
-* Optional: set bwt total output as water source in the energy dashboard
-
-### Firmware
-
-The firmware 2.02xx is currently rolling out to all devices. If your device does not have it yet, it can be requested through the customer service by mail and will be remotely installed on your device.
-
-It looks like the customer service does not do the update on devices in the UK - it is still unclear why and what other countries are affected.
-
-For more details and recent news, check out the discussion in the [HomeAssistant forum](https://community.home-assistant.io/t/bwt-best-water-tech-nology-support/270745/9999).
+* Optional: set entity _bwt total output_ as water source in the energy dashboard
 
 ### Entities
 
@@ -45,3 +37,34 @@ For more details and recent news, check out the discussion in the [HomeAssistant
 | day_output, month_output, year_output | The output of the current day, month and year. **These values are sometimes too low, probably when a lot of water is used in a short time. The total_output is more reliable to measure the water consumption.** https://github.com/dkarv/ha-bwt-perla/issues/14 |
 | current_flow | The current flow rate. Please note that this value is not too reliable. Especially short flows might be completely missing, because this value is only queried every 30 seconds in the beginning. Only once a water flow is detected, it is queried more often. Once the flow is zero, the refresh rate cools down to 30 seconds. |
 
+
+### FAQ
+
+#### How can I get the firmware update?
+
+The firmware 2.02xx is currently rolling out to all devices. If your device does not have it yet, it can be requested through the customer service by mail and will be remotely installed on your device.
+
+It looks like the customer service does not do the update on devices in the UK - it is still unclear why and what other countries are affected.
+
+For more details and recent news, check out the discussion in the [HomeAssistant forum](https://community.home-assistant.io/t/bwt-best-water-tech-nology-support/270745/9999).
+
+#### Where do I get the Login-Code?
+
+The Login-Code is sent to you by mail when registering the device for the first time. It is not related to the login credentials for the BWT app.
+
+#### Why are the values from the integration different to the ones on the device?
+
+The integration calculates the blended water volume for all entities. [More info on blended water](#What_is_blended_water).
+It does so to make the values comparable - if there is a remaining capacity of 200l, you can use 200l in your house before the BWT needs to start regeneration.
+
+Also the salt level on the device is only showing 10% steps, while this integration has exact percentages.
+
+#### What is blended water?
+
+There are three different volume values, related to how the BWT operates internally. The BWT device sometimes shows either of them, which can lead to confusion.
+
+* _incoming water_: flowing into the device at e.g. 20dH.
+* _fully desalinated water_: the BWT produces water with a hardness of 0dH
+* _blended water_: By mixing _incoming water_ and _fully desalinated water_ at a given ratio, the requested hardness is produced.
+
+A small example: Target of _blended water_ is 4dH, incoming 20dH. The BWT mixes now 20% of incoming water with 80% fully desalinated water: 0.2 * 20dH + 0.8 * 0dH = 4dH.
