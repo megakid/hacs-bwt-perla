@@ -13,7 +13,7 @@ _BWT Perla integration repository for [HACS](https://github.com/custom-component
 
 ### Installation
 
-* Add this repository as user-defined repository in HACS
+* Install BWT Perla in HACS
 * Setup integration and enter host / ip address and the "Login-Code"
 * Optional: set entity _bwt total output_ as water source in the energy dashboard
 
