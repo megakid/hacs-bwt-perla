@@ -21,6 +21,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up BWT Perla from a config entry."""
 
     hass.data.setdefault(DOMAIN, {})
+    # FIXME
     api = BwtApi(entry.data["host"], entry.data["code"])
     try:
         await api.get_current_data()
