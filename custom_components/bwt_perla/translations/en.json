@@ -87,6 +87,15 @@
             },
             "holiday_mode": {
                 "name": "Holiday mode active"
+            },
+            "next_customer_service": {
+                "name": "Next customer service"
+            },
+            "days_in_service": {
+                "name": "Days in service"
+            },
+            "warranty_days_remaining": {
+                "name": "Warranty days remaining"
             }
         }
     }

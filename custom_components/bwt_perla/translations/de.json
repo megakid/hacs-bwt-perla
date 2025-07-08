@@ -87,6 +87,15 @@
             },
             "holiday_mode": {
                 "name": "Urlaubsmodus aktiv"
+            },
+            "next_customer_service": {
+                "name": "Nächster Servicetermin"
+            },
+            "days_in_service": {
+                "name": "Tage seit Inbetriebnahme"
+            },
+            "warranty_days_remaining": {
+                "name": "Garantietage verbleibend"
             }
         }
     }

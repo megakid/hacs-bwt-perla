@@ -1,6 +1,8 @@
 from bwt_api.data import CurrentResponse
+from bwt_api.api import treated_to_blended 
 from .data import ApiData
 from datetime import datetime
+
 
 class LocalApiData(ApiData):
     """Data class for local API data."""
@@ -29,13 +31,13 @@ class LocalApiData(ApiData):
         return self._data.regenerativ_level
 
     def day_output(self) -> int:
-        return self._data.treated_day
+        return treated_to_blended(self._data.treated_day, self._data.in_hardness.dH, self._data.out_hardness.dH)
 
     def capacity_1(self) -> int:
-        return self._data.capacity_1
+        return self._data.capacity_1 / (self._data.in_hardness.dH - self._data.out_hardness.dH) / 1000.0
 
     def capacity_2(self) -> int:
-        return self._data.capacity_2
+        return self._data.capacity_2 / (self._data.in_hardness.dH - self._data.out_hardness.dH) / 1000.0
 
     def last_regeneration_1(self) -> datetime:
         return self._data.regeneration_last_1.astimezone()
@@ -70,11 +72,11 @@ class LocalApiData(ApiData):
     def regenerativ_total(self):
         return self._data.regenerativ_total
     
-    def treated_month(self):
-        return self._data.treated_month
+    def month_output(self):
+        return treated_to_blended(self._data.treated_month, self._data.in_hardness.dH, self._data.out_hardness.dH)
     
-    def treated_year(self):
-        return self._data.treated_year
+    def year_output(self):
+        return treated_to_blended(self._data.treated_year, self._data.in_hardness.dH, self._data.out_hardness.dH)
     
     def regeneration_count_1(self):
         return self._data.regeneration_count_1

@@ -1,50 +1,33 @@
-"""Example integration using DataUpdateCoordinator."""
+"""BWT Sensors."""
 
-from datetime import datetime, timedelta
-import logging
-from zoneinfo import ZoneInfo
-
-from bwt_api.api import treated_to_blended, BwtApi
-from bwt_api.data import BwtStatus
+from bwt_api.api import BwtApi
 from bwt_api.bwt import BwtModel
 from bwt_api.exception import WrongCodeException
-from homeassistant.exceptions import ConfigEntryNotReady
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.components.sensor import (
     SensorDeviceClass,
-    SensorEntity,
-    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
     UnitOfMass,
     UnitOfTime,
-    UnitOfVolume,
-    UnitOfVolumeFlowRate,
 )
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import BwtCoordinator
+from .sensors.base import *
 
-_LOGGER = logging.getLogger(__name__)
 _GLASS = "mdi:cup-water"
-_FAUCET = "mdi:faucet"
 _COUNTER = "mdi:counter"
 _WRENCH_CLOCK = "mdi:wrench-clock"
 _WRENCH_PERSON = "mdi:account-wrench"
-_WATER = "mdi:water"
-_WARNING = "mdi:alert-circle"
-_ERROR = "mdi:alert-decagram"
 _WATER_PLUS = "mdi:water-plus"
 _WATER_MINUS = "mdi:water-minus"
-_WATER_CHECK = "mdi:water-check"
 _PERCENTAGE = "mdi:percent"
 _DAYS_LEFT = "mdi:sort-numeric-descending-variant"
 _MASS = "mdi:weight"
@@ -52,8 +35,6 @@ _TIME = "mdi:calendar-clock"
 _DAY = "mdi:calendar-today"
 _MONTH = "mdi:calendar-month"
 _YEAR = "mdi:calendar-blank-multiple"
-_HOLIDAY = "mdi:location-exit"
-_UNKNOWN = "mdi:help-circle"
 
 
 async def async_setup_entry(
@@ -98,15 +79,6 @@ async def async_setup_entry(
             lambda data: data.hardness_in(),
             _WATER_PLUS,
         ),
-        DeviceClassSensor(
-            coordinator,
-            device_info,
-            config_entry.entry_id,
-            "customer_service",
-            lambda data: data.customer_service(),
-            SensorDeviceClass.TIMESTAMP,
-            _WRENCH_CLOCK,
-        ),
         UnitSensor(
             coordinator,
             device_info,
@@ -125,12 +97,14 @@ async def async_setup_entry(
             _DAY,
         ),
         CurrentFlowSensor(coordinator, device_info, config_entry.entry_id),
-        CalculatedCapacitySensor(
+        UnitSensor(
             coordinator,
             device_info,
             config_entry.entry_id,
             "capacity_1",
             lambda data: data.capacity_1(),
+            UnitOfVolume.LITERS,
+            _GLASS,
         ),
         DeviceClassSensor(
             coordinator,
@@ -140,6 +114,14 @@ async def async_setup_entry(
             lambda data: data.last_regeneration_1(),
             SensorDeviceClass.TIMESTAMP,
             _TIME,
+        ),
+        SimpleSensor(
+            coordinator,
+            device_info,
+            config_entry.entry_id,
+            "counter_regeneration_1",
+            lambda data: data.regeneration_count_1(),
+            _COUNTER,
         ),
     ]
 
@@ -209,7 +191,7 @@ async def async_setup_entry(
                 device_info,
                 config_entry.entry_id,
                 "month_output",
-                lambda data: data.treated_month(),
+                lambda data: data.month_output(),
                 _MONTH,
             )
         )
@@ -219,27 +201,30 @@ async def async_setup_entry(
                 device_info,
                 config_entry.entry_id,
                 "year_output",
-                lambda data: data.treated_year(),
+                lambda data: data.year_output(),
                 _YEAR,
             )
         )
         entities.append(
-            SimpleSensor(
+            DeviceClassSensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
-                "counter_regeneration_1",
-                lambda data: data.regeneration_count_1(),
-                _COUNTER,
+               "customer_service",
+                lambda data: data.customer_service(),
+                SensorDeviceClass.TIMESTAMP,
+                _WRENCH_CLOCK,
             )
         )
         if coordinator.data.columns() == 2:
-            entities.append(CalculatedCapacitySensor(
+            entities.append(UnitSensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "capacity_2",
                 lambda data: data.capacity_2(),
+                UnitOfVolume.LITERS,
+                _GLASS,
             ))
             entities.append(DeviceClassSensor(
                 coordinator,
@@ -260,349 +245,46 @@ async def async_setup_entry(
             ))
 
     elif model == BwtModel.PERLA_SILK:
-        # FIXME add remaining sensors
-        for index in [0, 1, 5, 6, 9, 12, 20, 21, 22, 24, 29, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42, 44, 45, 46, 47, 48]:
+        entities.append(
+            DeviceClassSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+               "next_customer_service",
+                lambda data: data.next_customer_service(),
+                SensorDeviceClass.TIMESTAMP,
+                _WRENCH_CLOCK,
+            )
+        )
+        entities.append(
+            SimpleSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "days_in_service",
+                lambda data: data.days_in_service(),
+                _COUNTER,
+            )
+        )
+        entities.append(
+            SimpleSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "warranty_days_remaining",
+                lambda data: data.warranty_days_remaining(),
+                _COUNTER,
+            )
+        )
+        for index in [0, 1, 5, 6, 9, 12, 20, 21, 22, 24, 29, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42, 44, 45, 46, 47]:
             entities.append(
-                SimpleSensor(
+                UnknownSensor(
                     coordinator,
                     device_info,
                     config_entry.entry_id,
-                    f"silk_register_{index}",
-                    lambda data: data.register(index),
-                    _UNKNOWN,
+                    index
                 )
             )
 
     async_add_entities(entities)
 
-
-class BwtEntity(CoordinatorEntity[BwtCoordinator]):
-    """General bwt entity with common properties."""
-
-    def __init__(
-        self,
-        coordinator: BwtCoordinator,
-        device_info: DeviceInfo,
-        entry_id: str,
-        key: str,
-    ) -> None:
-        """Initialize the common properties."""
-        super().__init__(coordinator)
-        self._attr_device_info = device_info
-        self._attr_translation_key = key
-        self._attr_has_entity_name = True
-        self.entity_id = f"sensor.${DOMAIN}_${key}"
-        self._attr_unique_id = entry_id + "_" + key
-
-
-class TotalOutputSensor(BwtEntity, SensorEntity):
-    """Total water [liter] that passed through the output."""
-
-    _attr_icon = _WATER
-    _attr_native_unit_of_measurement = UnitOfVolume.LITERS
-    _attr_device_class = SensorDeviceClass.WATER
-    _attr_state_class = SensorStateClass.TOTAL_INCREASING
-
-    def __init__(self, coordinator, device_info, entry_id) -> None:
-        """Initialize the sensor with the common coordinator."""
-        super().__init__(coordinator, device_info, entry_id, "total_output")
-        self._attr_native_value = coordinator.data.total_output()
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self._attr_native_value = self.coordinator.data.total_output()
-        self.async_write_ha_state()
-
-
-class CurrentFlowSensor(BwtEntity, SensorEntity):
-    """Current flow per hour."""
-
-    _attr_native_unit_of_measurement = UnitOfVolumeFlowRate.CUBIC_METERS_PER_HOUR
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_icon = _FAUCET
-    suggested_display_precision = 3
-
-    def __init__(self, coordinator, device_info, entry_id) -> None:
-        """Initialize the sensor with the common coordinator."""
-        super().__init__(coordinator, device_info, entry_id, "current_flow")
-        self._attr_native_value = coordinator.data.current_flow() / 1000.0
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        # HA only has m3 / h, we get the values in l/h
-        self._attr_native_value = self.coordinator.data.current_flow() / 1000.0
-        self.async_write_ha_state()
-
-
-class ErrorSensor(BwtEntity, SensorEntity):
-    """Errors reported by the device."""
-
-    _attr_icon = _ERROR
-
-    def __init__(self, coordinator, device_info, entry_id) -> None:
-        """Initialize the sensor with the common coordinator."""
-        super().__init__(coordinator, device_info, entry_id, "errors")
-        values = [x.name for x in self.coordinator.data.errors() if x.is_fatal()]
-        self._attr_native_value = ",".join(values)
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        values = [x.name for x in self.coordinator.data.errors() if x.is_fatal()]
-        self._attr_native_value = ",".join(values)
-        self.async_write_ha_state()
-
-
-class WarningSensor(BwtEntity, SensorEntity):
-    """Warnings reported by the device."""
-
-    _attr_icon = _WARNING
-
-    def __init__(self, coordinator, device_info, entry_id) -> None:
-        """Initialize the sensor with the common coordinator."""
-        super().__init__(coordinator, device_info, entry_id, "warnings")
-        values = [x.name for x in self.coordinator.data.errors() if not x.is_fatal()]
-        self._attr_native_value = ",".join(values)
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        values = [x.name for x in self.coordinator.data.errors() if not x.is_fatal()]
-        self._attr_native_value = ",".join(values)
-        self.async_write_ha_state()
-
-
-class SimpleSensor(BwtEntity, SensorEntity):
-    """Simplest sensor with least configuration options."""
-
-    def __init__(
-        self,
-        coordinator: BwtCoordinator,
-        device_info: DeviceInfo,
-        entry_id: str,
-        key: str,
-        extract,
-        icon: str,
-    ) -> None:
-        """Initialize the sensor with the common coordinator."""
-        super().__init__(coordinator, device_info, entry_id, key)
-        self._attr_icon = icon
-        self._extract = extract
-        self._attr_native_value = self._extract(self.coordinator.data)
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self._attr_native_value = self._extract(self.coordinator.data)
-        self.async_write_ha_state()
-
-
-class DeviceClassSensor(SimpleSensor):
-    """Basic sensor specifying a device class."""
-
-    def __init__(
-        self,
-        coordinator: BwtCoordinator,
-        device_info: DeviceInfo,
-        entry_id: str,
-        key: str,
-        extract,
-        device_class: SensorDeviceClass,
-        icon: str,
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator, device_info, entry_id, key, extract, icon)
-        self._attr_device_class = device_class
-
-
-class UnitSensor(SimpleSensor):
-    """Sensor specifying a unit."""
-
-    def __init__(
-        self,
-        coordinator: BwtCoordinator,
-        device_info: DeviceInfo,
-        entry_id: str,
-        key: str,
-        extract,
-        unit: str,
-        icon: str,
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator, device_info, entry_id, key, extract, icon)
-        self._attr_native_unit_of_measurement = unit
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-
-
-class StateSensor(BwtEntity, SensorEntity):
-    """State of the machine."""
-
-    _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = list(BwtStatus.__members__)
-    _attr_icon = _WATER_CHECK
-
-    def __init__(self, coordinator, device_info: DeviceInfo, entry_id: str) -> None:
-        """Initialize the sensor with the common coordinator."""
-        super().__init__(coordinator, device_info, entry_id, "state")
-        self._attr_native_value = self.coordinator.data.state().name
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self._attr_native_value = self.coordinator.data.state().name
-        self.async_write_ha_state()
-
-
-class HolidayModeSensor(BwtEntity, BinarySensorEntity):
-    """Current holiday mode state."""
-
-    _attr_icon = _HOLIDAY
-
-    def __init__(self, coordinator, device_info: DeviceInfo, entry_id: str) -> None:
-        """Initialize the sensor with the common coordinator."""
-        super().__init__(coordinator, device_info, entry_id, "holiday_mode")
-        self._attr_is_on = self.coordinator.data.holiday_mode() == 1
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self._attr_is_on = self.coordinator.data.holiday_mode() == 1
-        self.async_write_ha_state()
-
-
-class HolidayStartSensor(BwtEntity, SensorEntity):
-    """Future start of holiday mode if active."""
-
-    _attr_device_class = SensorDeviceClass.TIMESTAMP
-    _attr_icon = _HOLIDAY
-
-    def __init__(self, coordinator, device_info: DeviceInfo, entry_id: str) -> None:
-        """Initialize the sensor with the common coordinator."""
-        super().__init__(coordinator, device_info, entry_id, "holiday_mode_start")
-        holiday_mode = self.coordinator.data.holiday_mode()
-        if holiday_mode > 1:
-            self._attr_native_value = datetime.fromtimestamp(
-                holiday_mode
-            )
-        else:
-            self._attr_native_value = None
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        holiday_mode = self.coordinator.data.holiday_mode()
-        if holiday_mode > 1:
-            self._attr_native_value = datetime.fromtimestamp(
-                holiday_mode
-            )
-        else:
-            self._attr_native_value = None
-        self.async_write_ha_state()
-
-
-class CalculatedSensor(BwtEntity, SensorEntity):
-    """Sensor calculating blended water from treated water."""
-
-    suggested_display_precision = 0
-
-    def __init__(
-        self,
-        coordinator,
-        device_info: DeviceInfo,
-        entry_id: str,
-        key: str,
-        unit: UnitOfVolume,
-        stateClass: SensorStateClass,
-        extract,
-        icon: str,
-    ) -> None:
-        """Initialize the sensor with the common coordinator."""
-        super().__init__(coordinator, device_info, entry_id, key)
-        self._attr_native_unit_of_measurement = unit
-        self._attr_state_class = stateClass
-        self._attr_icon = icon
-        self._extract = extract
-        self._attr_native_value = treated_to_blended(
-            self._extract(self.coordinator.data),
-            self.coordinator.data.hardness_in(),
-            self.coordinator.data.hardness_out(),
-        )
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self._attr_native_value = treated_to_blended(
-            self._extract(self.coordinator.data),
-            self.coordinator.data.hardness_in(),
-            self.coordinator.data.hardness_out(),
-        )
-        self.async_write_ha_state()
-
-
-class CalculatedWaterSensor(CalculatedSensor):
-    """Sensor calculating blended water from treated water with DeviceClass.WATER."""
-
-    _attr_device_class = SensorDeviceClass.WATER
-
-    def __init__(
-        self,
-        coordinator,
-        device_info: DeviceInfo,
-        entry_id: str,
-        key: str,
-        extract,
-        icon: str,
-    ) -> None:
-        """Initialize the sensor with the common coordinator."""
-        super().__init__(
-            coordinator,
-            device_info,
-            entry_id,
-            key,
-            UnitOfVolume.LITERS,
-            SensorStateClass.TOTAL_INCREASING,
-            extract,
-            icon,
-        )
-
-
-class CalculatedCapacitySensor(BwtEntity, SensorEntity):
-    """Sensor calculating blended capacity from treated water."""
-
-    suggested_display_precision = 0
-
-    def __init__(
-        self,
-        coordinator,
-        device_info: DeviceInfo,
-        entry_id: str,
-        key: str,
-        extract,
-    ) -> None:
-        """Initialize the sensor with the common coordinator."""
-        super().__init__(coordinator, device_info, entry_id, key)
-        self._attr_native_unit_of_measurement = UnitOfVolume.LITERS
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_icon = _GLASS
-        self._extract = extract
-        self._attr_native_value = self._extract(self.coordinator.data) / (
-            (
-                self.coordinator.data.hardness_in()
-                - self.coordinator.data.hardness_out()
-            )
-            * 1000.0
-        )
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self._attr_native_value = self._extract(self.coordinator.data) / (
-            (
-                self.coordinator.data.hardness_in()
-                - self.coordinator.data.hardness_out()
-            )
-            * 1000.0
-        )
-        self.async_write_ha_state()

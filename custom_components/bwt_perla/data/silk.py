@@ -1,5 +1,8 @@
 from .data import ApiData
 from datetime import datetime, timedelta
+import logging
+
+_LOGGER = logging.getLogger(__name__)
 
 class SilkApiData(ApiData):
     """Data class for BWT Perla Silk API data."""
@@ -10,34 +13,30 @@ class SilkApiData(ApiData):
         self._registers = registers
     
     def current_flow(self) -> int:
-        return self._registers[CURRENT_FLOW_RATE]
+        return self.get_register(CURRENT_FLOW_RATE)
 
     def total_output(self) -> int:
-        return self._registers[TOTAL_WATER_SERVED]
+        return self.get_register(TOTAL_WATER_SERVED)
 
     def hardness_in(self):
-        return self._registers[WATER_HARDNESS]
-    
-    def hardness_out(self):
-        # We don't yet get the outgoing hardness. For the calculated entity -1 means we just return the original value.
-        return self._registers[WATER_HARDNESS] -1
+        return self.get_register(WATER_HARDNESS)
 
-    def customer_service(self) -> int:
-        service_days = self._registers[DAYS_UNTIL_SERVICE]
+    def next_customer_service(self) -> int:
+        service_days = self.get_register(DAYS_UNTIL_SERVICE)
         return (datetime.now().astimezone() + timedelta(days=service_days)).replace(hour = 0, minute = 0, second = 0, microsecond = 0)
 
     def regenerativ_level(self) -> int:
-        return int(self._registers[REGENERATIV_REMAINING] / self._registers[REGENERATIV_CAPACITY] * 100)
+        return int(self.get_register(REGENERATIV_REMAINING) / self.get_register(REGENERATIV_CAPACITY) * 100)
     
     def day_output(self) -> int:
-        return self._registers[DAILY_WATER_USAGE]
+        return self.get_register(DAILY_WATER_USAGE)
     
     def capacity_1(self) -> int:
-        return self._registers[REMAINING_CAPACITY]
+        return self.get_register(REMAINING_CAPACITY)
     
     def last_regeneration_1(self) -> datetime:
-        hour = self._registers[LAST_REGENERATION_HOUR]
-        minute = self._registers[LAST_REGENERATION_MINUTE]
+        hour = self.get_register(LAST_REGENERATION_HOUR)
+        minute = self.get_register(LAST_REGENERATION_MINUTE)
         now = datetime.now().astimezone()
         if hour < now.hour or (hour == now.hour and minute <= now.minute):
             # today
@@ -46,41 +45,50 @@ class SilkApiData(ApiData):
         # yesterday
         return now.replace(hour=hour, minute=minute, second=0, microsecond=0) - timedelta(days=1)
     
-    def register(self, index: int) -> int | None:
+    def days_in_service(self) -> int:
+        return self.get_register(DAYS_IN_SERVICE)
+    
+    def warranty_days_remaining(self) -> int:
+        return self.get_register(WARRANTY_DAYS_REMAINING)
+    
+    def regeneration_count_1(self) -> int:
+        return self.get_register(TOTAL_NUMBER_OF_RECHARGES)
+
+    def get_register(self, index: int) -> int | None:
+        _LOGGER.warning(f"Getting register {index} in {len(self._registers)}")
         if index < 0 or index >= len(self._registers):
             return None
         return self._registers[index]
 
-# Maybe salt type?
-CURRENT_HOUR = 2
-CURRENT_MINUTE = 3
-# ppm
-WATER_HARDNESS = 4
+CURRENT_HOUR = 2 # useless
+CURRENT_MINUTE = 3 # useless
 
-LAST_REGENERATION_HOUR = 7
-LAST_REGENERATION_MINUTE = 8
+WATER_HARDNESS = 4 # ppm
 
-BASE_MODEL_NUMBER = 10
-DUPLEX_SETTING = 11
+LAST_REGENERATION_HOUR = 7 # last_regeneration_1
+LAST_REGENERATION_MINUTE = 8 # last_regeneration_1
 
-TURBINE_PULSES_PER_LITER = 13
-AVG_WATER_SERVED_PER_DAY = 14
-TOTAL_WATER_SERVED = 15
-CURRENT_FLOW_RATE = 16
-DAYS_IN_SERVICE = 17
-WARRANTY_DAYS_REMAINING = 18
-TOTAL_NUMBER_OF_RECHARGES = 19
+BASE_MODEL_NUMBER = 10 # Probably useless?
+DUPLEX_SETTING = 11 # Probably useless?
 
-REMAINING_CAPACITY = 23
+TURBINE_PULSES_PER_LITER = 13 # Probably useless?
+AVG_WATER_SERVED_PER_DAY = 14 # Probably useless? HA will have better statistics
+TOTAL_WATER_SERVED = 15 # total_output
+CURRENT_FLOW_RATE = 16 # current_flow
+DAYS_IN_SERVICE = 17 # days_in_service
+WARRANTY_DAYS_REMAINING = 18 # warranty_days_remaining
+TOTAL_NUMBER_OF_RECHARGES = 19 # regeneration_count_1
 
-DWELL_DURATION = 25
-BRINE_DURATION = 26
-ALLOW_CHANGING_SALT_TYPE = 27
-ALLOW_CHANGING_REGEN_TIME = 28
+REMAINING_CAPACITY = 23 # capacity_1
 
-REGENERATIV_CAPACITY = 30
-REGENERATIV_REMAINING = 31
+DWELL_DURATION = 25 # [min] useless
+BRINE_DURATION = 26 # [min] useless
+ALLOW_CHANGING_SALT_TYPE = 27 # [bool] useless
+ALLOW_CHANGING_REGEN_TIME = 28 # [bool] useless
 
-DAYS_UNTIL_SERVICE = 34
+REGENERATIV_CAPACITY = 30 # 31/30 = salt %
+REGENERATIV_REMAINING = 31 # 31/30 = salt %
 
-DAILY_WATER_USAGE = 43
+DAYS_UNTIL_SERVICE = 34 # next_customer_service
+
+DAILY_WATER_USAGE = 43 # day_output

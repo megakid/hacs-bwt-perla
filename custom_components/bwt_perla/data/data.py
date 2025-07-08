@@ -12,9 +12,6 @@ class ApiData(ABC):
     def hardness_in(self) -> int: pass
 
     @abstractmethod
-    def customer_service(self) -> datetime: pass
-
-    @abstractmethod
     def regenerativ_level(self) -> int: pass
 
     @abstractmethod
@@ -25,3 +22,6 @@ class ApiData(ABC):
 
     @abstractmethod
     def last_regeneration_1(self) -> datetime: pass
+
+    @abstractmethod
+    def regeneration_count_1(self) -> int: pass
