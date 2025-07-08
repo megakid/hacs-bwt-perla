@@ -4,11 +4,14 @@ import asyncio
 from datetime import timedelta
 import logging
 
-from bwt_api.api import BwtApi
-from bwt_api.data import CurrentResponse
+from .data.data import ApiData
+from .data.local import LocalApiData
+from .data.silk import SilkApiData
+from bwt_api.bwt import BwtModel
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.exceptions import ConfigEntryNotReady
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,10 +19,11 @@ _UPDATE_INTERVAL_MIN = 1
 _UPDATE_INTERVAL_MAX = 30
 
 
-class BwtCoordinator(DataUpdateCoordinator[CurrentResponse]):
+class BwtCoordinator(DataUpdateCoordinator[ApiData]):
     """Bwt coordinator."""
+    model: BwtModel
 
-    def __init__(self, hass: HomeAssistant, my_api: BwtApi) -> None:
+    def __init__(self, hass: HomeAssistant, api, model: BwtModel) -> None:
         """Initialize my coordinator."""
         super().__init__(
             hass,
@@ -29,7 +33,8 @@ class BwtCoordinator(DataUpdateCoordinator[CurrentResponse]):
             # Polling interval. Will only be polled if there are subscribers.
             update_interval=timedelta(seconds=_UPDATE_INTERVAL_MAX),
         )
-        self.my_api = my_api
+        self.my_api = api
+        self.model = model
 
     async def _async_update_data(self):
         """Fetch data from API endpoint.
@@ -41,11 +46,31 @@ class BwtCoordinator(DataUpdateCoordinator[CurrentResponse]):
         # Note: asyncio.TimeoutError and aiohttp.ClientError are already
         # handled by the data update coordinator.
         async with asyncio.timeout(10):
-            new_values = await self.my_api.get_current_data()
+            if self.model == BwtModel.PERLA_LOCAL_API:
+                new_values = LocalApiData(await self.my_api.get_current_data())
+            elif self.model == BwtModel.PERLA_SILK:
+                new_values = SilkApiData(await self.my_api.get_registers())
+            else:
+                _LOGGER.error("Unsupported API type: %s", type(self.my_api))
+                raise Exception("Unsupported API type")
             self.update_interval = calculate_update_interval(
-                self.update_interval, new_values.current_flow
+                self.update_interval, new_values.current_flow()
             )
             return new_values
+
+    def get_model_suffix(self) -> str:
+        """Get the model suffix based on the number of columns."""
+        if self.model == BwtModel.PERLA_LOCAL_API:
+            if self.data.columns() == 2:
+                return "Duplex"
+            return "One"
+        return "Silk"
+
+    def get_firmware_version(self) -> str:
+        """Get the firmware version."""
+        if self.model == BwtModel.PERLA_LOCAL_API:
+            return self.data.firmware_version()
+        return "Unknown"
 
 
 def calculate_update_interval(current_interval: timedelta | None, current_flow: int):

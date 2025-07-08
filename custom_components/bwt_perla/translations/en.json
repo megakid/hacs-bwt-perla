@@ -18,11 +18,6 @@
         }
     },
     "entity": {
-        "binary_sensor": {
-            "holiday_mode": {
-                "name": ""
-            }
-        },
         "sensor": {
             "capacity_1": {
                 "name": "Remaining capacity of column 1"
@@ -89,6 +84,9 @@
             },
             "year_output": {
                 "name": "Output of current year"
+            },
+            "holiday_mode": {
+                "name": "Holiday mode active"
             }
         }
     }

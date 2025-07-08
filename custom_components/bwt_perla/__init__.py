@@ -2,11 +2,11 @@
 
 import logging
 
-from bwt_api.api import BwtApi
+from bwt_api.api import BwtApi, BwtSilkApi
 from bwt_api.exception import BwtException
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import Platform, CONF_CODE, CONF_HOST
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.entity_registry import async_migrate_entries
@@ -21,10 +21,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up BWT Perla from a config entry."""
 
     hass.data.setdefault(DOMAIN, {})
-    # FIXME
-    api = BwtApi(entry.data["host"], entry.data["code"])
     try:
-        await api.get_current_data()
+        if CONF_CODE in entry.data:
+            api = BwtApi(entry.data["host"], entry.data["code"])
+            await api.get_current_data()
+        else:
+            api = BwtSilkApi(entry.data["host"])
+            await api.get_registers()
     except BwtException as e:
         _LOGGER.exception("Error setting up Bwt API")
         await api.close()

@@ -1,12 +1,14 @@
 """Example integration using DataUpdateCoordinator."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from zoneinfo import ZoneInfo
 
-from bwt_api.api import treated_to_blended
+from bwt_api.api import treated_to_blended, BwtApi
 from bwt_api.data import BwtStatus
+from bwt_api.bwt import BwtModel
 from bwt_api.exception import WrongCodeException
+from homeassistant.exceptions import ConfigEntryNotReady
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.components.sensor import (
@@ -51,6 +53,7 @@ _DAY = "mdi:calendar-today"
 _MONTH = "mdi:calendar-month"
 _YEAR = "mdi:calendar-blank-multiple"
 _HOLIDAY = "mdi:location-exit"
+_UNKNOWN = "mdi:help-circle"
 
 
 async def async_setup_entry(
@@ -60,25 +63,16 @@ async def async_setup_entry(
 ) -> None:
     """Set up bwt sensors from config entry."""
     my_api = hass.data[DOMAIN][config_entry.entry_id]
-    coordinator = BwtCoordinator(hass, my_api)
+    model = BwtModel.PERLA_LOCAL_API if isinstance(
+        my_api, BwtApi) else BwtModel.PERLA_SILK
+    coordinator = BwtCoordinator(hass, my_api, model)
 
-    # Fetch initial data so we have data when entities subscribe
-    #
-    # If the refresh fails, async_config_entry_first_refresh will
-    # raise ConfigEntryNotReady and setup will try again later
-    #
-    # If you do not want to retry setup on failure, use
-    # coordinator.async_refresh() instead
-    #
     try:
         await coordinator.async_config_entry_first_refresh()
     except WrongCodeException as e:
-        # Raising ConfigEntryAuthFailed will cancel future updates
-        # and start a config flow with SOURCE_REAUTH (async_step_reauth)
         raise ConfigEntryAuthFailed from e
 
-    columns = coordinator.data.columns
-    model_suffix = "Duplex" if columns == 2 else "One"
+    model_suffix = coordinator.get_model_suffix()
     device_info = DeviceInfo(
         configuration_url=None,
         connections=set(),
@@ -90,154 +84,194 @@ async def async_setup_entry(
         name=config_entry.title,
         serial_number=None,
         suggested_area=None,
-        sw_version=coordinator.data.firmware_version,
+        sw_version=coordinator.get_firmware_version(),
         via_device=None,
     )
 
     entities = [
-            TotalOutputSensor(coordinator, device_info, config_entry.entry_id),
-            ErrorSensor(coordinator, device_info, config_entry.entry_id),
-            WarningSensor(coordinator, device_info, config_entry.entry_id),
-            SimpleSensor(
-                coordinator,
-                device_info,
-                config_entry.entry_id,
-                "hardness_in",
-                lambda data: data.in_hardness.dH,
-                _WATER_PLUS,
-            ),
+        TotalOutputSensor(coordinator, device_info, config_entry.entry_id),
+        SimpleSensor(
+            coordinator,
+            device_info,
+            config_entry.entry_id,
+            "hardness_in",
+            lambda data: data.hardness_in(),
+            _WATER_PLUS,
+        ),
+        DeviceClassSensor(
+            coordinator,
+            device_info,
+            config_entry.entry_id,
+            "customer_service",
+            lambda data: data.customer_service(),
+            SensorDeviceClass.TIMESTAMP,
+            _WRENCH_CLOCK,
+        ),
+        UnitSensor(
+            coordinator,
+            device_info,
+            config_entry.entry_id,
+            "regenerativ_level",
+            lambda data: data.regenerativ_level(),
+            PERCENTAGE,
+            _PERCENTAGE,
+        ),
+        CalculatedWaterSensor(
+            coordinator,
+            device_info,
+            config_entry.entry_id,
+            "day_output",
+            lambda data: data.day_output(),
+            _DAY,
+        ),
+        CurrentFlowSensor(coordinator, device_info, config_entry.entry_id),
+        CalculatedCapacitySensor(
+            coordinator,
+            device_info,
+            config_entry.entry_id,
+            "capacity_1",
+            lambda data: data.capacity_1(),
+        ),
+        DeviceClassSensor(
+            coordinator,
+            device_info,
+            config_entry.entry_id,
+            "last_regeneration_1",
+            lambda data: data.last_regeneration_1(),
+            SensorDeviceClass.TIMESTAMP,
+            _TIME,
+        ),
+    ]
+
+    if model == BwtModel.PERLA_LOCAL_API:
+        entities.append(
+            ErrorSensor(coordinator, device_info, config_entry.entry_id)
+        )
+        entities.append(
+            WarningSensor(coordinator, device_info, config_entry.entry_id)
+        )
+        entities.append(
             SimpleSensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "hardness_out",
-                lambda data: data.out_hardness.dH,
+                lambda data: data.hardness_out(),
                 _WATER_MINUS,
-            ),
-            DeviceClassSensor(
-                coordinator,
-                device_info,
-                config_entry.entry_id,
-                "customer_service",
-                lambda data: data.service_customer.astimezone(),
-                SensorDeviceClass.TIMESTAMP,
-                _WRENCH_CLOCK,
-            ),
+            )
+        )
+        entities.append(
             DeviceClassSensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "technician_service",
-                lambda data: data.service_technician.astimezone(),
+                lambda data: data.service_technician(),
                 SensorDeviceClass.TIMESTAMP,
                 _WRENCH_PERSON,
-            ),
-            StateSensor(coordinator, device_info, config_entry.entry_id),
-            UnitSensor(
-                coordinator,
-                device_info,
-                config_entry.entry_id,
-                "regenerativ_level",
-                lambda data: data.regenerativ_level,
-                PERCENTAGE,
-                _PERCENTAGE,
-            ),
+            )
+        )
+        entities.append(
+            StateSensor(coordinator, device_info, config_entry.entry_id)
+        )
+        entities.append(
             UnitSensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "regenerativ_days",
-                lambda data: data.regenerativ_days,
+                lambda data: data.regenerativ_days(),
                 UnitOfTime.DAYS,
                 _DAYS_LEFT,
-            ),
+            )
+        )
+        entities.append(
             UnitSensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "regenerativ_mass",
-                lambda data: data.regenerativ_total,
+                lambda data: data.regenerativ_total(),
                 UnitOfMass.GRAMS,
                 _MASS,
-            ),
-            HolidayModeSensor(coordinator, device_info, config_entry.entry_id),
-            HolidayStartSensor(coordinator, device_info, config_entry.entry_id),
-            CalculatedWaterSensor(
-                coordinator,
-                device_info,
-                config_entry.entry_id,
-                "day_output",
-                lambda data: data.treated_day,
-                _DAY,
-            ),
+            )
+        )
+        entities.append(
+            HolidayModeSensor(coordinator, device_info, config_entry.entry_id)
+        )
+        entities.append(
+            HolidayStartSensor(coordinator, device_info,
+                               config_entry.entry_id),
+        )
+        entities.append(
             CalculatedWaterSensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "month_output",
-                lambda data: data.treated_month,
+                lambda data: data.treated_month(),
                 _MONTH,
-            ),
+            )
+        )
+        entities.append(
             CalculatedWaterSensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "year_output",
-                lambda data: data.treated_year,
+                lambda data: data.treated_year(),
                 _YEAR,
-            ),
-            CurrentFlowSensor(coordinator, device_info, config_entry.entry_id),
-            CalculatedCapacitySensor(
-                coordinator,
-                device_info,
-                config_entry.entry_id,
-                "capacity_1",
-                lambda data: data.capacity_1,
-            ),
-            DeviceClassSensor(
-                coordinator,
-                device_info,
-                config_entry.entry_id,
-                "last_regeneration_1",
-                lambda data: data.regeneration_last_1.astimezone(),
-                SensorDeviceClass.TIMESTAMP,
-                _TIME,
-            ),
+            )
+        )
+        entities.append(
             SimpleSensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "counter_regeneration_1",
-                lambda data: data.regeneration_count_1,
+                lambda data: data.regeneration_count_1(),
                 _COUNTER,
-            ),
-        ]
-
-    if columns == 2:
-        entities.append(CalculatedCapacitySensor(
+            )
+        )
+        if coordinator.data.columns() == 2:
+            entities.append(CalculatedCapacitySensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "capacity_2",
-                lambda data: data.capacity_2,
+                lambda data: data.capacity_2(),
             ))
-        entities.append(DeviceClassSensor(
+            entities.append(DeviceClassSensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "last_regeneration_2",
-                lambda data: data.regeneration_last_2.astimezone(),
+                lambda data: data.last_regeneration_2(),
                 SensorDeviceClass.TIMESTAMP,
                 _TIME,
             ))
-        entities.append(SimpleSensor(
+            entities.append(SimpleSensor(
                 coordinator,
                 device_info,
                 config_entry.entry_id,
                 "counter_regeneration_2",
-                lambda data: data.regeneration_count_2,
+                lambda data: data.regeneration_count_2(),
                 _COUNTER,
             ))
+
+    elif model == BwtModel.PERLA_SILK:
+        # FIXME add remaining sensors
+        for index in [0, 1, 5, 6, 9, 12, 20, 21, 22, 24, 29, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42, 44, 45, 46, 47, 48]:
+            entities.append(
+                SimpleSensor(
+                    coordinator,
+                    device_info,
+                    config_entry.entry_id,
+                    f"silk_register_{index}",
+                    lambda data: data.register(index),
+                    _UNKNOWN,
+                )
+            )
 
     async_add_entities(entities)
 
@@ -272,11 +306,12 @@ class TotalOutputSensor(BwtEntity, SensorEntity):
     def __init__(self, coordinator, device_info, entry_id) -> None:
         """Initialize the sensor with the common coordinator."""
         super().__init__(coordinator, device_info, entry_id, "total_output")
+        self._attr_native_value = coordinator.data.total_output()
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_native_value = self.coordinator.data.blended_total
+        self._attr_native_value = self.coordinator.data.total_output()
         self.async_write_ha_state()
 
 
@@ -291,12 +326,13 @@ class CurrentFlowSensor(BwtEntity, SensorEntity):
     def __init__(self, coordinator, device_info, entry_id) -> None:
         """Initialize the sensor with the common coordinator."""
         super().__init__(coordinator, device_info, entry_id, "current_flow")
+        self._attr_native_value = coordinator.data.current_flow() / 1000.0
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         # HA only has m3 / h, we get the values in l/h
-        self._attr_native_value = self.coordinator.data.current_flow / 1000
+        self._attr_native_value = self.coordinator.data.current_flow() / 1000.0
         self.async_write_ha_state()
 
 
@@ -308,11 +344,13 @@ class ErrorSensor(BwtEntity, SensorEntity):
     def __init__(self, coordinator, device_info, entry_id) -> None:
         """Initialize the sensor with the common coordinator."""
         super().__init__(coordinator, device_info, entry_id, "errors")
+        values = [x.name for x in self.coordinator.data.errors() if x.is_fatal()]
+        self._attr_native_value = ",".join(values)
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        values = [x.name for x in self.coordinator.data.errors if x.is_fatal()]
+        values = [x.name for x in self.coordinator.data.errors() if x.is_fatal()]
         self._attr_native_value = ",".join(values)
         self.async_write_ha_state()
 
@@ -325,11 +363,13 @@ class WarningSensor(BwtEntity, SensorEntity):
     def __init__(self, coordinator, device_info, entry_id) -> None:
         """Initialize the sensor with the common coordinator."""
         super().__init__(coordinator, device_info, entry_id, "warnings")
+        values = [x.name for x in self.coordinator.data.errors() if not x.is_fatal()]
+        self._attr_native_value = ",".join(values)
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        values = [x.name for x in self.coordinator.data.errors if not x.is_fatal()]
+        values = [x.name for x in self.coordinator.data.errors() if not x.is_fatal()]
         self._attr_native_value = ",".join(values)
         self.async_write_ha_state()
 
@@ -350,6 +390,7 @@ class SimpleSensor(BwtEntity, SensorEntity):
         super().__init__(coordinator, device_info, entry_id, key)
         self._attr_icon = icon
         self._extract = extract
+        self._attr_native_value = self._extract(self.coordinator.data)
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -405,11 +446,12 @@ class StateSensor(BwtEntity, SensorEntity):
     def __init__(self, coordinator, device_info: DeviceInfo, entry_id: str) -> None:
         """Initialize the sensor with the common coordinator."""
         super().__init__(coordinator, device_info, entry_id, "state")
+        self._attr_native_value = self.coordinator.data.state().name
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_native_value = self.coordinator.data.state.name
+        self._attr_native_value = self.coordinator.data.state().name
         self.async_write_ha_state()
 
 
@@ -421,11 +463,12 @@ class HolidayModeSensor(BwtEntity, BinarySensorEntity):
     def __init__(self, coordinator, device_info: DeviceInfo, entry_id: str) -> None:
         """Initialize the sensor with the common coordinator."""
         super().__init__(coordinator, device_info, entry_id, "holiday_mode")
+        self._attr_is_on = self.coordinator.data.holiday_mode() == 1
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_is_on = self.coordinator.data.holiday_mode == 1
+        self._attr_is_on = self.coordinator.data.holiday_mode() == 1
         self.async_write_ha_state()
 
 
@@ -438,14 +481,21 @@ class HolidayStartSensor(BwtEntity, SensorEntity):
     def __init__(self, coordinator, device_info: DeviceInfo, entry_id: str) -> None:
         """Initialize the sensor with the common coordinator."""
         super().__init__(coordinator, device_info, entry_id, "holiday_mode_start")
+        holiday_mode = self.coordinator.data.holiday_mode()
+        if holiday_mode > 1:
+            self._attr_native_value = datetime.fromtimestamp(
+                holiday_mode
+            )
+        else:
+            self._attr_native_value = None
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        holiday_mode = self.coordinator.data.holiday_mode
+        holiday_mode = self.coordinator.data.holiday_mode()
         if holiday_mode > 1:
             self._attr_native_value = datetime.fromtimestamp(
-                holiday_mode # , tz=ZoneInfo("localtime")
+                holiday_mode
             )
         else:
             self._attr_native_value = None
@@ -474,14 +524,19 @@ class CalculatedSensor(BwtEntity, SensorEntity):
         self._attr_state_class = stateClass
         self._attr_icon = icon
         self._extract = extract
+        self._attr_native_value = treated_to_blended(
+            self._extract(self.coordinator.data),
+            self.coordinator.data.hardness_in(),
+            self.coordinator.data.hardness_out(),
+        )
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_native_value = treated_to_blended(
             self._extract(self.coordinator.data),
-            self.coordinator.data.in_hardness.dH,
-            self.coordinator.data.out_hardness.dH,
+            self.coordinator.data.hardness_in(),
+            self.coordinator.data.hardness_out(),
         )
         self.async_write_ha_state()
 
@@ -532,14 +587,21 @@ class CalculatedCapacitySensor(BwtEntity, SensorEntity):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_icon = _GLASS
         self._extract = extract
+        self._attr_native_value = self._extract(self.coordinator.data) / (
+            (
+                self.coordinator.data.hardness_in()
+                - self.coordinator.data.hardness_out()
+            )
+            * 1000.0
+        )
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_native_value = self._extract(self.coordinator.data) / (
             (
-                self.coordinator.data.in_hardness.dH
-                - self.coordinator.data.out_hardness.dH
+                self.coordinator.data.hardness_in()
+                - self.coordinator.data.hardness_out()
             )
             * 1000.0
         )

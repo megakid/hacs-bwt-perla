@@ -18,11 +18,6 @@
         }
     },
     "entity": {
-        "binary_sensor": {
-            "holiday_mode": {
-                "name": "Urlaubsmodus"
-            }
-        },
         "sensor": {
             "capacity_1": {
                 "name": "Verbleibende Kapazität Säule 1"
@@ -89,6 +84,9 @@
             },
             "year_output": {
                 "name": "Wasserverbrauch aktuelles Jahr"
+            },
+            "holiday_mode": {
+                "name": "Urlaubsmodus aktiv"
             }
         }
     }

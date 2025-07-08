@@ -84,11 +84,9 @@
       },
       "current_flow": {
         "name": "Current flow"
-      }
-    },
-    "binary_sensor": {
+      },
       "holiday_mode": {
-        "name": ""
+        "name": "Holiday mode active"
       }
     }
   }
