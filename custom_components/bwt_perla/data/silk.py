@@ -55,7 +55,6 @@ class SilkApiData(ApiData):
         return self.get_register(TOTAL_NUMBER_OF_RECHARGES)
 
     def get_register(self, index: int) -> int | None:
-        _LOGGER.warning(f"Getting register {index} in {len(self._registers)}")
         if index < 0 or index >= len(self._registers):
             return None
         return self._registers[index]
