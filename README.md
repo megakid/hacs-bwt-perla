@@ -11,6 +11,8 @@ _BWT Perla integration repository for [HACS](https://github.com/custom-component
 * "Login-Code" sent to you by mail during registration [(more info)](#where-do-i-get-the-login-code)
 * local network connection (you need the ip address during setup)
 
+**Note:** This integration now also supports BWT water softeners with the new registers API (`/silk/registers` endpoint) which provides additional water usage and salt monitoring capabilities without requiring a login code.
+
 ### Installation
 
 * Install BWT Perla in HACS
@@ -36,6 +38,19 @@ _BWT Perla integration repository for [HACS](https://github.com/custom-component
 | capacity_1, capacity_2 | Capacity the columns have left of water with hardness_out |
 | day_output, month_output, year_output | The output of the current day, month and year. **These values are sometimes too low, probably when a lot of water is used in a short time. The total_output is more reliable to measure the water consumption.** https://github.com/dkarv/ha-bwt-perla/issues/14 |
 | current_flow | The current flow rate. Please note that this value is not too reliable. Especially short flows might be completely missing, because this value is only queried every 30 seconds in the beginning. Only once a water flow is detected, it is queried more often. Once the flow is zero, the refresh rate cools down to 30 seconds. |
+
+#### Additional Entities for New Registers API
+
+If your BWT water softener supports the new registers API (`/silk/registers` endpoint), you'll also get these additional entities:
+
+| Entity Id | Information |
+| ------------- | ------------- |
+| daily_average_water_use | Average daily water consumption in liters |
+| capacity_percentage | Current capacity percentage remaining |
+| max_salt_capacity | Maximum salt capacity in kilograms |
+| current_salt_level | Current salt level in kilograms |
+
+This firmware automatically detects the availability of the new endpoint and presents the appropriate entities.
 
 
 ### FAQ

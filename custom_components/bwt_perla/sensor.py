@@ -4,6 +4,8 @@ from bwt_api.api import BwtApi
 from bwt_api.bwt import BwtModel
 from bwt_api.exception import WrongCodeException
 
+from .api.registers import BwtRegistersApi
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
 )
@@ -12,6 +14,7 @@ from homeassistant.const import (
     PERCENTAGE,
     UnitOfMass,
     UnitOfTime,
+    UnitOfVolume,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -44,8 +47,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up bwt sensors from config entry."""
     my_api = hass.data[DOMAIN][config_entry.entry_id]
-    model = BwtModel.PERLA_LOCAL_API if isinstance(
-        my_api, BwtApi) else BwtModel.PERLA_SILK
+    if isinstance(my_api, BwtApi):
+        model = BwtModel.PERLA_LOCAL_API
+    elif isinstance(my_api, BwtRegistersApi):
+        model = "perla_silk_registers"
+    else:
+        model = BwtModel.PERLA_SILK
     coordinator = BwtCoordinator(hass, my_api, model)
 
     try:
@@ -285,6 +292,62 @@ async def async_setup_entry(
                     index
                 )
             )
+    
+    elif model == "perla_silk_registers":
+        # Add sensors specific to the new registers API
+        entities.extend([
+            SimpleSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "daily_average_water_use",
+                lambda data: data.daily_average_water_use(),
+                _WATER,
+            ),
+            SimpleSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "days_in_service",
+                lambda data: data.days_in_service(),
+                _COUNTER,
+            ),
+            SimpleSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "warranty_days_remaining",
+                lambda data: data.warranty_days_remaining(),
+                _COUNTER,
+            ),
+            UnitSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "capacity_percentage",
+                lambda data: data.capacity_percentage(),
+                PERCENTAGE,
+                _PERCENTAGE,
+            ),
+            UnitSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "max_salt_capacity",
+                lambda data: data.max_salt_capacity(),
+                UnitOfMass.KILOGRAMS,
+                _MASS,
+            ),
+            UnitSensor(
+                coordinator,
+                device_info,
+                config_entry.entry_id,
+                "current_salt_level",
+                lambda data: data.current_salt_level(),
+                UnitOfMass.KILOGRAMS,
+                _MASS,
+            ),
+        ])
 
     async_add_entities(entities)
 

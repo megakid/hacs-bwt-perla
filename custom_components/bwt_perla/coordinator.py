@@ -7,6 +7,7 @@ import logging
 from .data.data import ApiData
 from .data.local import LocalApiData
 from .data.silk import SilkApiData
+from .data.silk_registers import SilkRegistersApiData
 from bwt_api.bwt import BwtModel
 
 from homeassistant.core import HomeAssistant
@@ -50,6 +51,8 @@ class BwtCoordinator(DataUpdateCoordinator[ApiData]):
                 new_values = LocalApiData(await self.my_api.get_current_data())
             elif self.model == BwtModel.PERLA_SILK:
                 new_values = SilkApiData(await self.my_api.get_registers())
+            elif self.model == "perla_silk_registers":
+                new_values = SilkRegistersApiData(await self.my_api.get_registers())
             else:
                 _LOGGER.error("Unsupported API type: %s", type(self.my_api))
                 raise Exception("Unsupported API type")
@@ -64,6 +67,8 @@ class BwtCoordinator(DataUpdateCoordinator[ApiData]):
             if self.data.columns() == 2:
                 return "Duplex"
             return "One"
+        elif self.model == "perla_silk_registers":
+            return "Water Softener"
         return "Silk"
 
     def get_firmware_version(self) -> str:

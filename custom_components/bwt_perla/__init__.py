@@ -5,6 +5,8 @@ import logging
 from bwt_api.api import BwtApi, BwtSilkApi
 from bwt_api.exception import BwtException
 
+from .api.registers import BwtRegistersApi
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform, CONF_CODE, CONF_HOST
 from homeassistant.core import HomeAssistant, callback
@@ -26,11 +28,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             api = BwtApi(entry.data["host"], entry.data["code"])
             await api.get_current_data()
         else:
-            api = BwtSilkApi(entry.data["host"])
-            await api.get_registers()
+            # Try to determine if it's the new registers API
+            from .detector import determine_bwt_model
+            model = await determine_bwt_model(entry.data["host"])
+            
+            if model == "perla_silk_registers":
+                api = BwtRegistersApi(entry.data["host"])
+                await api.get_registers()
+            else:
+                api = BwtSilkApi(entry.data["host"])
+                await api.get_registers()
     except BwtException as e:
         _LOGGER.exception("Error setting up Bwt API")
         await api.close()
+        raise ConfigEntryNotReady from e
+    except Exception as e:
+        _LOGGER.exception("Error setting up API")
+        if 'api' in locals():
+            await api.close()
         raise ConfigEntryNotReady from e
 
     hass.data[DOMAIN][entry.entry_id] = api

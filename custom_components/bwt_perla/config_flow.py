@@ -3,8 +3,11 @@ import logging
 from typing import Any
 
 from bwt_api.api import BwtApi, BwtSilkApi
-from bwt_api.bwt import determine_bwt_model, BwtModel
+from bwt_api.bwt import BwtModel
 from bwt_api.exception import ConnectException, WrongCodeException
+
+from .detector import determine_bwt_model
+from .api.registers import BwtRegistersApi
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -54,6 +57,11 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             async with BwtSilkApi(data[CONF_HOST]) as api:
                 await api.get_registers()
                 name = "BWT Perla Silk"
+        case "perla_silk_registers":
+            _LOGGER.debug("BWT Water Softener with Registers API detected")
+            async with BwtRegistersApi(data[CONF_HOST]) as api:
+                await api.get_registers()
+                name = "BWT Water Softener"
         case _:
             _LOGGER.error("Unsupported BWT model: %s", model)
             raise ValueError(f"Unsupported BWT model: {model}")

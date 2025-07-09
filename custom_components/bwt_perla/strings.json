@@ -96,6 +96,18 @@
             },
             "warranty_days_remaining": {
                 "name": "Warranty days remaining"
+            },
+            "daily_average_water_use": {
+                "name": "Daily Average Water Use"
+            },
+            "capacity_percentage": {
+                "name": "Current Capacity Percentage"
+            },
+            "max_salt_capacity": {
+                "name": "Max Salt Capacity"
+            },
+            "current_salt_level": {
+                "name": "Current Salt Level"
             }
         }
     }
