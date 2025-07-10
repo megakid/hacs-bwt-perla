@@ -13,7 +13,7 @@ class SilkApiData(ApiData):
         self._registers = registers
     
     def current_flow(self) -> int:
-        return self.get_register(CURRENT_FLOW_RATE) * 3600 # l/s -> l/h
+        return self.get_register(CURRENT_FLOW_RATE) * 60 # l/m -> l/h
 
     def total_output(self) -> int:
         return self.get_register(TOTAL_WATER_SERVED) * 100
